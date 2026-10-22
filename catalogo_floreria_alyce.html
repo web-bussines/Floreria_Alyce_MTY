@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Florería Alyce | Catálogo Editable</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome para Íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #F3EFEA;
+            --text-color: #111111;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Montserrat', sans-serif;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        h1, h2, h3, .serif-font {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Contenedor de hojas animadas */
+        #leaves-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .leaf {
+            position: absolute;
+            top: -10%;
+            opacity: 0;
+            animation: fall linear infinite;
+            color: rgba(17, 17, 17, 0.13);
+        }
+
+        @keyframes fall {
+            0% {
+                opacity: 0;
+                top: -10%;
+                transform: translateX(0) rotate(0deg);
+            }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% {
+                opacity: 0;
+                top: 110%;
+                transform: translateX(100px) rotate(360deg);
+            }
+        }
+
+        /* Animaciones de revelación y elevación */
+        @keyframes revealUp {
+            0% {
+                opacity: 0;
+                transform: translateY(25px) scale(0.98);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .reveal-item {
+            animation: revealUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        /* Tarjetas de catálogo */
+        .catalog-card {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(6px);
+            border: 1px solid #111111;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .catalog-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 18px 35px -10px rgba(0, 0, 0, 0.18);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Botones interactivos con cortina de revelación */
+        .btn-alyce {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #111111;
+            transition: all 0.35s ease;
+            z-index: 1;
+        }
+
+        .btn-alyce::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background-color: #111111;
+            transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: -1;
+        }
+
+        .btn-alyce:hover::before,
+        .btn-alyce.active-filter::before {
+            left: 0;
+        }
+
+        .btn-alyce:hover,
+        .btn-alyce.active-filter {
+            color: #F3EFEA;
+        }
+
+        /* Indicadores en Modo Edición */
+        body.edit-mode [contenteditable="true"] {
+            outline: 1px dashed #111111;
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: text;
+        }
+
+        body.edit-mode [contenteditable="true"]:focus {
+            outline: 2px solid #111111;
+            background-color: #ffffff;
+        }
+
+        .edit-only {
+            display: none;
+        }
+
+        body.edit-mode .edit-only {
+            display: flex;
+        }
+
+        /* Estilos para exportar a PDF / Impresión */
+        @media print {
+            #leaves-container,
+            #editor-toolbar,
+            #toggle-edit-btn,
+            .no-print,
+            .edit-only {
+                display: none !important;
+            }
+            body {
+                background-color: #F3EFEA !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .catalog-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                box-shadow: none !important;
+                transform: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 px-4 md:px-8">
+
+    <!-- Fondo animado de hojas -->
+    <div id="leaves-container"></div>
+
+    <!-- Botón Flotante para Activar/Desactivar Modo Edición -->
+    <button id="toggle-edit-btn" onclick="toggleEditMode()" class="no-print fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-black text-[#F3EFEA] px-5 py-3 rounded-full shadow-2xl hover:scale-105 transition-transform text-xs uppercase tracking-widest font-medium border border-[#F3EFEA]">
+        <i class="fa-solid fa-pen-to-square"></i>
+        <span id="edit-btn-text">Editar Catálogo</span>
+    </button>
+
+    <!-- Barra Superior de Herramientas (Visible solo en Modo Edición) -->
+    <div id="editor-toolbar" class="edit-only no-print fixed top-0 left-0 w-full bg-black text-[#F3EFEA] z-50 py-3 px-4 shadow-lg flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2">
+            <span class="bg-[#F3EFEA] text-black font-semibold px-2.5 py-1 rounded uppercase tracking-wider">Modo Editable Activo</span>
+            <span class="hidden md:inline text-gray-300">Haz clic en cualquier texto para editarlo o sobre las fotos para cambiarlas.</span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Configuración de WhatsApp -->
+            <div class="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded">
+                <i class="fa-brands fa-whatsapp text-green-400 text-sm"></i>
+                <label for="whatsapp-number" class="text-[11px] uppercase tracking-wider">WhatsApp:</label>
+                <input id="whatsapp-number" type="text" value="5218100000000" placeholder="Ej: 5218112345678" class="bg-transparent border-b border-gray-400 focus:border-white outline-none text-white w-32 text-xs px-1" onchange="updateWhatsappLinks()">
+            </div>
+
+            <!-- Botón Agregar Producto -->
+            <button onclick="addNewProduct()" class="bg-[#F3EFEA] text-black hover:bg-white px-3 py-1.5 rounded font-medium uppercase tracking-wider flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-plus"></i> Nuevo Arreglo
+            </button>
+
+            <!-- Botón Guardar PDF -->
+            <button onclick="window.print()" class="border border-[#F3EFEA] hover:bg-white/10 px-3 py-1.5 rounded uppercase tracking-wider flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-file-pdf"></i> Guardar PDF
+            </button>
+
+            <!-- Botón Descargar HTML listo -->
+            <button onclick="downloadCatalogHTML()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded font-medium uppercase tracking-wider flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-download"></i> Descargar HTML
+            </button>
+        </div>
+    </div>
+
+    <!-- Contenedor Principal -->
+    <main class="w-full max-w-5xl mx-auto relative z-10 flex flex-col items-center mt-4">
+
+        <!-- Botón Volver a Enlaces -->
+        <div class="w-full flex justify-start mb-4 no-print">
+            <a href="floreria_alyce_links.html" class="inline-flex items-center gap-2 text-xs uppercase tracking-widest hover:underline py-1">
+                <i class="fa-solid fa-arrow-left"></i> Volver a Enlaces
+            </a>
+        </div>
+
+        <!-- Cabecera y Logo -->
+        <header class="flex flex-col items-center text-center mb-8 reveal-item">
+            <div class="mb-5 relative group">
+                <div class="w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-black shadow-xl bg-white flex items-center justify-center p-1 relative">
+                    <img id="brand-logo" src="logo.jpg" alt="Florería Alyce Logo" class="w-full h-full object-cover rounded-full" onerror="this.src='https://placehold.co/400x400/F3EFEA/111111?text=FA'">
+                    
+                    <!-- Botón para cambiar logo en modo edición -->
+                    <label class="edit-only absolute inset-0 bg-black/60 text-white flex-col items-center justify-center cursor-pointer rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-[10px] uppercase tracking-wider">
+                        <i class="fa-solid fa-camera text-lg mb-1"></i>
+                        Cambiar Logo
+                        <input type="file" accept="image/*" class="hidden" onchange="changeImage(this, 'brand-logo')">
+                    </label>
+                </div>
+                <!-- Adorno de hoja -->
+                <div class="absolute -bottom-1 -right-1 text-black">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+                        <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <h1 class="editable-field text-3xl md:text-5xl font-bold tracking-widest uppercase mb-2 text-black">
+                Florería Alyce
+            </h1>
+            <p class="editable-field text-xs md:text-sm tracking-[0.25em] uppercase text-gray-700 font-light mb-3">
+                Catálogo de Decoración y Diseño Floral
+            </p>
+            <div class="w-24 h-[1px] bg-black my-2"></div>
+            <p class="editable-field text-xs text-gray-600 max-w-md font-light italic">
+                Diseños florales creados al momento para transmitir emociones en cada detalle.
+            </p>
+        </header>
+
+        <!-- Barra de Filtros por Categoría -->
+        <section class="w-full flex flex-wrap items-center justify-center gap-3 mb-10 no-print reveal-item">
+            <button onclick="filterCategory('todos', this)" class="btn-alyce active-filter px-5 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium">
+                Todos
+            </button>
+            <button onclick="filterCategory('Arreglos', this)" class="btn-alyce px-5 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium">
+                Arreglos Florales
+            </button>
+            <button onclick="filterCategory('Ramos', this)" class="btn-alyce px-5 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium">
+                Ramos & Bouquets
+            </button>
+            <button onclick="filterCategory('Eventos', this)" class="btn-alyce px-5 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium">
+                Eventos
+            </button>
+            <button onclick="filterCategory('Bodas', this)" class="btn-alyce px-5 py-2.5 rounded-full text-xs uppercase tracking-widest font-medium">
+                Bodas
+            </button>
+        </section>
+
+        <!-- Cuadrícula de Productos del Catálogo -->
+        <section id="catalog-grid" class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+
+            <!-- Producto 1 -->
+            <article class="catalog-card rounded-xl overflow-hidden flex flex-col justify-between reveal-item" data-category="Arreglos">
+                <div>
+                    <div class="relative h-64 overflow-hidden bg-white group border-b border-black">
+                        <img id="img-prod-1" src="https://placehold.co/600x600/F3EFEA/111111?text=Arreglo+Imperial" alt="Arreglo Floral" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        
+                        <!-- Etiqueta de categoría -->
+                        <span class="editable-field category-badge absolute top-3 left-3 bg-black text-[#F3EFEA] text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
+                            Arreglos
+                        </span>
+
+                        <!-- Botón eliminar (solo en edición) -->
+                        <button onclick="removeProduct(this)" class="edit-only absolute top-3 right-3 bg-red-600 text-white w-8 h-8 rounded-full items-center justify-center shadow hover:bg-red-700" title="Eliminar producto">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+
+                        <!-- Subir foto (solo en edición) -->
+                        <label class="edit-only absolute inset-0 bg-black/50 text-white flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity text-xs uppercase tracking-wider">
+                            <i class="fa-solid fa-image text-2xl mb-1"></i>
+                            Cambiar Fotografía
+                            <input type="file" accept="image/*" class="hidden" onchange="changeImage(this, 'img-prod-1')">
+                        </label>
+                    </div>
+
+                    <div class="p-5">
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <h2 class="editable-field product-title text-xl font-semibold text-black leading-snug">
+                                Caja Imperial de Rosas
+                            </h2>
+                            <span class="editable-field product-price text-lg font-semibold serif-font whitespace-nowrap">
+                                $1,250 MXN
+                            </span>
+                        </div>
+                        <p class="editable-field product-desc text-xs text-gray-700 font-light leading-relaxed">
+                            Elegante sombrerera artesanal con 36 rosas frescas de invernadero, follaje fino de eucalipto y tarjeta dedicatoria impresa.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="px-5 pb-5 pt-2 no-print">
+                    <a href="#" onclick="orderViaWhatsapp(this); return false;" class="btn-alyce flex items-center justify-center gap-2 w-full py-3 rounded-lg text-xs uppercase tracking-widest font-medium">
+                        <i class="fa-brands fa-whatsapp text-base"></i>
+                        <span>Pedir por WhatsApp</span>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Producto 2 -->
+            <article class="catalog-card rounded-xl overflow-hidden flex flex-col justify-between reveal-item" data-category="Ramos">
+                <div>
+                    <div class="relative h-64 overflow-hidden bg-white group border-b border-black">
+                        <img id="img-prod-2" src="https://placehold.co/600x600/F3EFEA/111111?text=Bouquet+Alyce" alt="Bouquet Alyce" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        
+                        <span class="editable-field category-badge absolute top-3 left-3 bg-black text-[#F3EFEA] text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
+                            Ramos
+                        </span>
+
+                        <button onclick="removeProduct(this)" class="edit-only absolute top-3 right-3 bg-red-600 text-white w-8 h-8 rounded-full items-center justify-center shadow hover:bg-red-700" title="Eliminar producto">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+
+                        <label class="edit-only absolute inset-0 bg-black/50 text-white flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity text-xs uppercase tracking-wider">
+                            <i class="fa-solid fa-image text-2xl mb-1"></i>
+                            Cambiar Fotografía
+                            <input type="file" accept="image/*" class="hidden" onchange="changeImage(this, 'img-prod-2')">
+                        </label>
+                    </div>
+
+                    <div class="p-5">
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <h2 class="editable-field product-title text-xl font-semibold text-black leading-snug">
+                                Bouquet Francés Alyce
+                            </h2>
+                            <span class="editable-field product-price text-lg font-semibold serif-font whitespace-nowrap">
+                                $890 MXN
+                            </span>
+                        </div>
+                        <p class="editable-field product-desc text-xs text-gray-700 font-light leading-relaxed">
+                            Ramo de autor envuelto en papel coreano tonos crema y negro con listón de satín, rosas blancas, lisianthus y nube.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="px-5 pb-5 pt-2 no-print">
+                    <a href="#" onclick="orderViaWhatsapp(this); return false;" class="btn-alyce flex items-center justify-center gap-2 w-full py-3 rounded-lg text-xs uppercase tracking-widest font-medium">
+                        <i class="fa-brands fa-whatsapp text-base"></i>
+                        <span>Pedir por WhatsApp</span>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Producto 3 -->
+            <article class="catalog-card rounded-xl overflow-hidden flex flex-col justify-between reveal-item" data-category="Arreglos">
+                <div>
+                    <div class="relative h-64 overflow-hidden bg-white group border-b border-black">
+                        <img id="img-prod-3" src="https://placehold.co/600x600/F3EFEA/111111?text=Jarrón+Botánico" alt="Jarrón Botánico" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        
+                        <span class="editable-field category-badge absolute top-3 left-3 bg-black text-[#F3EFEA] text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
+                            Arreglos
+                        </span>
+
+                        <button onclick="removeProduct(this)" class="edit-only absolute top-3 right-3 bg-red-600 text-white w-8 h-8 rounded-full items-center justify-center shadow hover:bg-red-700" title="Eliminar producto">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+
+                        <label class="edit-only absolute inset-0 bg-black/50 text-white flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity text-xs uppercase tracking-wider">
+                            <i class="fa-solid fa-image text-2xl mb-1"></i>
+                            Cambiar Fotografía
+                            <input type="file" accept="image/*" class="hidden" onchange="changeImage(this, 'img-prod-3')">
+                        </label>
+                    </div>
+
+                    <div class="p-5">
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <h2 class="editable-field product-title text-xl font-semibold text-black leading-snug">
+                                Jarrón Tulipanes & Lirios
+                            </h2>
+                            <span class="editable-field product-price text-lg font-semibold serif-font whitespace-nowrap">
+                                $1,450 MXN
+                            </span>
+                        </div>
+                        <p class="editable-field product-desc text-xs text-gray-700 font-light leading-relaxed">
+                            Base de cristal estilizada con selección de tulipanes holandeses, lirios aromáticos y follaje silvestre de temporada.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="px-5 pb-5 pt-2 no-print">
+                    <a href="#" onclick="orderViaWhatsapp(this); return false;" class="btn-alyce flex items-center justify-center gap-2 w-full py-3 rounded-lg text-xs uppercase tracking-widest font-medium">
+                        <i class="fa-brands fa-whatsapp text-base"></i>
+                        <span>Pedir por WhatsApp</span>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Producto 4 -->
+            <article class="catalog-card rounded-xl overflow-hidden flex flex-col justify-between reveal-item" data-category="Eventos">
+                <div>
+                    <div class="relative h-64 overflow-hidden bg-white group border-b border-black">
+                        <img id="img-prod-4" src="https://placehold.co/600x600/F3EFEA/111111?text=Centros+de+Mesa" alt="Centros de Mesa" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        
+                        <span class="editable-field category-badge absolute top-3 left-3 bg-black text-[#F3EFEA] text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
+                            Eventos
+                        </span>
+
+                        <button onclick="removeProduct(this)" class="edit-only absolute top-3 right-3 bg-red-600 text-white w-8 h-8 rounded-full items-center justify-center shadow hover:bg-red-700" title="Eliminar producto">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+
+                        <label class="edit-only absolute inset-0 bg-black/50 text-white flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity text-xs uppercase tracking-wider">
+                            <i class="fa-solid fa-image text-2xl mb-1"></i>
+                            Cambiar Fotografía
+                            <input type="file" accept="image/*" class="hidden" onchange="changeImage(this, 'img-prod-4')">
+                        </label>
+                    </div>
+
+                    <div class="p-5">
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <h2 class="editable-field product-title text-xl font-semibold text-black leading-snug">
+                                Paquete Centros de Mesa (10 pzas)
+                            </h2>
+                            <span class="editable-field product-price text-lg font-semibold serif-font whitespace-nowrap">
+                                $4,800 MXN
+                            </span>
+                        </div>
+                        <p class="editable-field product-desc text-xs text-gray-700 font-light leading-relaxed">
+                            Diseño floral bajo para recepción social o empresarial, personalizado a la paleta de colores de tu evento. Incluye montaje.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="px-5 pb-5 pt-2 no-print">
+                    <a href="#" onclick="orderViaWhatsapp(this); return false;" class="btn-alyce flex items-center justify-center gap-2 w-full py-3 rounded-lg text-xs uppercase tracking-widest font-medium">
+                        <i class="fa-brands fa-whatsapp text-base"></i>
+                        <span>Cotizar por WhatsApp</span>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Producto 5 -->
+            <article class="catalog-card rounded-xl overflow-hidden flex flex-col justify-between reveal-item" data-category="Bodas">
+                <div>
+                    <div class="relative h-64 overflow-hidden bg-white group border-b border-black">
+                        <img id="img-prod-5" src="https://placehold.co/600x600/F3EFEA/111111?text=Ramo+de+Novia" alt="Ramo de Novia" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        
+                        <span class="editable-field category-badge absolute top-3 left-3 bg-black text-[#F3EFEA] text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
+                            Bodas
+                        </span>
+
+                        <button onclick="removeProduct(this)" class="edit-only absolute top-3 right-3 bg-red-600 text-white w-8 h-8 rounded-full items-center justify-center shadow hover:bg-red-700" title="Eliminar producto">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+
+                        <label class="edit-only absolute inset-0 bg-black/50 text-white flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity text-xs uppercase tracking-wider">
+                            <i class="fa-solid fa-image text-2xl mb-1"></i>
+                            Cambiar Fotografía
+                            <input type="file" accept="image/*" class="hidden" onchange="changeImage(this, 'img-prod-5')">
+                        </label>
+                    </div>
+
+                    <div class="p-5">
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <h2 class="editable-field product-title text-xl font-semibold text-black leading-snug">
+                                Ramo de Novia Clásico & Boutonniere
+                            </h2>
+                            <span class="editable-field product-price text-lg font-semibold serif-font whitespace-nowrap">
+                                $2,300 MXN
+                            </span>
+                        </div>
+                        <p class="editable-field product-desc text-xs text-gray-700 font-light leading-relaxed">
+                            Composición nupcial con rosas inglesas, peonías o ranúnculos según temporada, empuñadura en seda natural y azar para novio.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="px-5 pb-5 pt-2 no-print">
+                    <a href="#" onclick="orderViaWhatsapp(this); return false;" class="btn-alyce flex items-center justify-center gap-2 w-full py-3 rounded-lg text-xs uppercase tracking-widest font-medium">
+                        <i class="fa-brands fa-whatsapp text-base"></i>
+                        <span>Cotizar por WhatsApp</span>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Producto 6 -->
+            <article class="catalog-card rounded-xl overflow-hidden flex flex-col justify-between reveal-item" data-category="Bodas">
+                <div>
+                    <div class="relative h-64 overflow-hidden bg-white group border-b border-black">
+                        <img id="img-prod-6" src="https://placehold.co/600x600/F3EFEA/111111?text=Arco+Monumental" alt="Arco Floral" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        
+                        <span class="editable-field category-badge absolute top-3 left-3 bg-black text-[#F3EFEA] text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
+                            Bodas
+                        </span>
+
+                        <button onclick="removeProduct(this)" class="edit-only absolute top-3 right-3 bg-red-600 text-white w-8 h-8 rounded-full items-center justify-center shadow hover:bg-red-700" title="Eliminar producto">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+
+                        <label class="edit-only absolute inset-0 bg-black/50 text-white flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity text-xs uppercase tracking-wider">
+                            <i class="fa-solid fa-image text-2xl mb-1"></i>
+                            Cambiar Fotografía
+                            <input type="file" accept="image/*" class="hidden" onchange="changeImage(this, 'img-prod-6')">
+                        </label>
+                    </div>
+
+                    <div class="p-5">
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <h2 class="editable-field product-title text-xl font-semibold text-black leading-snug">
+                                Arco Floral para Ceremonia
+                            </h2>
+                            <span class="editable-field product-price text-lg font-semibold serif-font whitespace-nowrap">
+                                Desde $6,500
+                            </span>
+                        </div>
+                        <p class="editable-field product-desc text-xs text-gray-700 font-light leading-relaxed">
+                            Estructura arquitectónica vestida con follajes orgánicos y bloques florales abundantes para altar, entrada o mesa de novios.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="px-5 pb-5 pt-2 no-print">
+                    <a href="#" onclick="orderViaWhatsapp(this); return false;" class="btn-alyce flex items-center justify-center gap-2 w-full py-3 rounded-lg text-xs uppercase tracking-widest font-medium">
+                        <i class="fa-brands fa-whatsapp text-base"></i>
+                        <span>Cotizar por WhatsApp</span>
+                    </a>
+                </div>
+            </article>
+
+        </section>
+
+        <!-- Sección de Información de Pedidos y Pagos -->
+        <section class="w-full mt-14 p-6 md:p-8 border border-black rounded-xl bg-white/50 text-center reveal-item">
+            <h3 class="editable-field text-xl font-semibold uppercase tracking-widest mb-2">
+                Información de Pedidos y Entregas
+            </h3>
+            <p class="editable-field text-xs text-gray-700 max-w-2xl mx-auto leading-relaxed font-light mb-4">
+                Todos nuestros arreglos incluyen tarjeta personalizada sin costo. Aceptamos pagos por transferencia bancaria, depósito y efectivo. Para eventos y bodas sugerimos agendar con mínimo 15 días de anticipación.
+            </p>
+            <div class="flex flex-wrap justify-center gap-6 text-xs uppercase tracking-wider font-medium mt-4">
+                <span class="editable-field"><i class="fa-solid fa-truck-fast mr-1.5"></i> Envío a Domicilio</span>
+                <span class="editable-field"><i class="fa-solid fa-money-bill-transfer mr-1.5"></i> Pago con Transferencia</span>
+                <span class="editable-field"><i class="fa-solid fa-heart mr-1.5"></i> Flores 100% Frescas</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Pie de página -->
+    <footer class="mt-12 mb-8 text-center z-10">
+        <p class="editable-field text-xs text-gray-600 font-light tracking-wider uppercase">
+            © 2026 Florería Alyce · Decoración y Diseño Floral
+        </p>
+    </footer>
+
+    <!-- Scripts de Funcionalidad, Edición y Animación -->
+    <script>
+        let isEditMode = false;
+        let productCounter = 7;
+
+        // 1. Alternar Modo Edición Visual
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            document.body.classList.toggle('edit-mode', isEditMode);
+            document.body.style.paddingTop = isEditMode ? '75px' : '2.5rem';
+
+            const editableElements = document.querySelectorAll('.editable-field');
+            editableElements.forEach(el => {
+                el.setAttribute('contenteditable', isEditMode ? 'true' : 'false');
+            });
+
+            // Sincronizar categoría cuando se edita la etiqueta
+            document.querySelectorAll('.category-badge').forEach(badge => {
+                badge.oninput = function() {
+                    const card = this.closest('.catalog-card');
+                    if (card) card.setAttribute('data-category', this.innerText.trim());
+                };
+            });
+
+            const btnText = document.getElementById('edit-btn-text');
+            btnText.textContent = isEditMode ? 'Finalizar Edición' : 'Editar Catálogo';
+        }
+
+        // 2. Cambiar imágenes desde el dispositivo (Base64 para que se guarden al descargar el HTML)
+        function changeImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgElement = document.getElementById(imgId);
+                    if (imgElement) {
+                        imgElement.src = e.target.result;
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // 3. Agregar un nuevo producto al catálogo
+        function addNewProduct() {
+            const grid = document.getElementById('catalog-grid');
+            const newImgId = `img-prod-${productCounter++}`;
+
+            const article = document.createElement('article');
+            article.className = 'catalog-card rounded-xl overflow-hidden flex flex-col justify-between reveal-item';
+            article.setAttribute('data-category', 'Arreglos');
+
+            article.innerHTML = `
+                <div>
+                    <div class="relative h-64 overflow-hidden bg-white group border-b border-black">
+                        <img id="${newImgId}" src="https://placehold.co/600x600/F3EFEA/111111?text=Nuevo+Arreglo" alt="Nuevo Arreglo" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        
+                        <span contenteditable="${isEditMode}" class="editable-field category-badge absolute top-3 left-3 bg-black text-[#F3EFEA] text-[10px] uppercase tracking-widest px-3 py-1 rounded-full">
+                            Arreglos
+                        </span>
+
+                        <button onclick="removeProduct(this)" class="edit-only absolute top-3 right-3 bg-red-600 text-white w-8 h-8 rounded-full items-center justify-center shadow hover:bg-red-700" title="Eliminar producto">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+
+                        <label class="edit-only absolute inset-0 bg-black/50 text-white flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity text-xs uppercase tracking-wider">
+                            <i class="fa-solid fa-image text-2xl mb-1"></i>
+                            Cambiar Fotografía
+                            <input type="file" accept="image/*" class="hidden" onchange="changeImage(this, '${newImgId}')">
+                        </label>
+                    </div>
+
+                    <div class="p-5">
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <h2 contenteditable="${isEditMode}" class="editable-field product-title text-xl font-semibold text-black leading-snug">
+                                Nombre del Nuevo Arreglo
+                            </h2>
+                            <span contenteditable="${isEditMode}" class="editable-field product-price text-lg font-semibold serif-font whitespace-nowrap">
+                                $950 MXN
+                            </span>
+                        </div>
+                        <p contenteditable="${isEditMode}" class="editable-field product-desc text-xs text-gray-700 font-light leading-relaxed">
+                            Haz clic aquí para escribir la descripción detallada de las flores, base y tamaño de este arreglo.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="px-5 pb-5 pt-2 no-print">
+                    <a href="#" onclick="orderViaWhatsapp(this); return false;" class="btn-alyce flex items-center justify-center gap-2 w-full py-3 rounded-lg text-xs uppercase tracking-widest font-medium">
+                        <i class="fa-brands fa-whatsapp text-base"></i>
+                        <span>Pedir por WhatsApp</span>
+                    </a>
+                </div>
+            `;
+
+            grid.appendChild(article);
+            article.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // 4. Eliminar un producto
+        function removeProduct(button) {
+            const card = button.closest('.catalog-card');
+            if (card && confirm('¿Deseas eliminar este arreglo del catálogo?')) {
+                card.remove();
+            }
+        }
+
+        // 5. Filtrar por categoría
+        function filterCategory(category, btnElement) {
+            document.querySelectorAll('.btn-alyce').forEach(btn => btn.classList.remove('active-filter'));
+            btnElement.classList.add('active-filter');
+
+            const cards = document.querySelectorAll('.catalog-card');
+            cards.forEach(card => {
+                const badgeText = card.querySelector('.category-badge')?.innerText.trim().toLowerCase() || '';
+                const cardCategory = (card.getAttribute('data-category') || '').toLowerCase();
+                const target = category.toLowerCase();
+
+                if (target === 'todos' || cardCategory === target || badgeText === target) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // 6. Enviar pedido directo a WhatsApp con el nombre y precio del arreglo
+        function orderViaWhatsapp(linkElement) {
+            if (isEditMode) return;
+            const card = linkElement.closest('.catalog-card');
+            const title = card.querySelector('.product-title')?.innerText.trim() || 'Arreglo Floral';
+            const price = card.querySelector('.product-price')?.innerText.trim() || '';
+            const phone = document.getElementById('whatsapp-number').value.replace(/\D/g, '') || '5218100000000';
+
+            const message = `¡Hola Florería Alyce! 🌸 Me interesa pedir información sobre el diseño: *${title}* (${price}) que vi en su catálogo.`;
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank');
+        }
+
+        function updateWhatsappLinks() {
+            const input = document.getElementById('whatsapp-number');
+            input.setAttribute('value', input.value);
+        }
+
+        // 7. Descargar el archivo HTML actualizado con todos los cambios
+        function downloadCatalogHTML() {
+            const wasInEditMode = isEditMode;
+            if (wasInEditMode) toggleEditMode(); // Desactivar edición antes de exportar
+
+            const leavesContainer = document.getElementById('leaves-container');
+            leavesContainer.innerHTML = ''; // Limpiar hojas dinámicas para guardar limpio
+
+            const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'catalogo_floreria_alyce.html';
+            a.click();
+
+            initLeaves(); // Restaurar hojas
+            if (wasInEditMode) toggleEditMode();
+        }
+
+        // 8. Animación de hojas en el fondo
+        function initLeaves() {
+            const leavesContainer = document.getElementById('leaves-container');
+            const numberOfLeaves = 14;
+            const leafSVG = `
+                <svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%">
+                    <path d="M17.5,3C13.4,3,9.7,5.5,7.8,9C6.4,11.5,6.1,14.4,7.1,17.1c0.1,0.3,0.3,0.6,0.6,0.8l-3.3,3.3c-0.4,0.4-0.4,1,0,1.4 c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3l3.3-3.3c0.3,0.3,0.6,0.5,1,0.6c2.7,1,5.6,0.7,8.1-0.7c3.5-1.9,6-5.6,6-9.7 C24,5,21,2,17.5,3z M15,16.5c-1.3,0.7-2.9,0.8-4.3,0.3l5.5-5.5c0.4-0.4,0.4-1,0-1.4s-1-0.4-1.4,0l-5.5,5.5c-0.5-1.4-0.4-3,0.3-4.3 C11.1,8.3,14,6.4,17.5,6.4C19.8,6.5,21.5,8.2,21.5,10.5C21.6,14,19.7,16.9,15,16.5z"/>
+                </svg>
+            `;
+
+            function createLeaf() {
+                const leaf = document.createElement('div');
+                leaf.classList.add('leaf');
+                leaf.innerHTML = leafSVG;
+
+                const size = Math.random() * 20 + 15;
+                const leftPosition = Math.random() * 100;
+                const animationDuration = Math.random() * 10 + 12;
+                const animationDelay = Math.random() * 8;
+
+                leaf.style.width = `${size}px`;
+                leaf.style.height = `${size}px`;
+                leaf.style.left = `${leftPosition}%`;
+                leaf.style.animationDuration = `${animationDuration}s`;
+                leaf.style.animationDelay = `${animationDelay}s`;
+
+                leavesContainer.appendChild(leaf);
+
+                leaf.addEventListener('animationend', () => {
+                    leaf.remove();
+                    createLeaf();
+                });
+            }
+
+            for (let i = 0; i < numberOfLeaves; i++) {
+                createLeaf();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initLeaves);
+    </script>
+</body>
+</html>
