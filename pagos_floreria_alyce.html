@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Florería Alyce | Pagos por Transferencia</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome para Íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #F3EFEA;
+            --text-color: #111111;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Montserrat', sans-serif;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        h1, h2, h3, .serif-font {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Contenedor de hojas animadas */
+        #leaves-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .leaf {
+            position: absolute;
+            top: -10%;
+            opacity: 0;
+            animation: fall linear infinite;
+            color: rgba(17, 17, 17, 0.14);
+        }
+
+        @keyframes fall {
+            0% {
+                opacity: 0;
+                top: -10%;
+                transform: translateX(0) rotate(0deg);
+            }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% {
+                opacity: 0;
+                top: 110%;
+                transform: translateX(100px) rotate(360deg);
+            }
+        }
+
+        /* Animaciones de revelación */
+        @keyframes revealLogo {
+            0% {
+                opacity: 0;
+                transform: scale(0.75) translateY(20px);
+                filter: blur(6px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+                filter: blur(0);
+            }
+        }
+
+        @keyframes revealFadeUp {
+            0% {
+                opacity: 0;
+                transform: translateY(25px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-logo {
+            opacity: 0;
+            animation: revealLogo 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+        }
+
+        .animate-header {
+            opacity: 0;
+            animation: revealFadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;
+        }
+
+        .animate-card {
+            opacity: 0;
+            animation: revealFadeUp 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.55s forwards;
+        }
+
+        .animate-actions {
+            opacity: 0;
+            animation: revealFadeUp 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.8s forwards;
+        }
+
+        /* Tarjeta principal de datos bancarios */
+        .bank-card {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid #111111;
+            box-shadow: 0 18px 35px -10px rgba(0, 0, 0, 0.16);
+        }
+
+        /* Recuadro interactivo para copiar solo el número */
+        .copy-number-box {
+            background-color: #FFFFFF;
+            border: 1px solid #111111;
+            transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+            cursor: pointer;
+        }
+
+        .copy-number-box:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 24px -8px rgba(17, 17, 17, 0.22);
+        }
+
+        .copy-number-box:active {
+            transform: scale(0.99);
+        }
+
+        /* Botón con cortina negra estilo Florería Alyce */
+        .link-button {
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(4px);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                        box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                        color 0.35s ease;
+        }
+
+        .link-button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background-color: #111111;
+            transition: left 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            z-index: -1;
+        }
+
+        .link-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 14px 28px -8px rgba(17, 17, 17, 0.25);
+            color: #F3EFEA;
+        }
+
+        .link-button:hover::before {
+            left: 0;
+        }
+
+        .profile-shadow {
+            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Notificación flotante de copiado */
+        #copy-toast {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 px-4">
+
+    <!-- Contenedor para la animación de hojas -->
+    <div id="leaves-container"></div>
+
+    <!-- Notificación Flotante (Toast) al copiar -->
+    <div id="copy-toast" class="fixed top-6 z-50 bg-black text-[#F3EFEA] px-5 py-3 rounded-full shadow-2xl flex items-center gap-2.5 text-xs uppercase tracking-widest font-medium opacity-0 pointer-events-none -translate-y-4">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span id="toast-message">¡Número copiado al portapapeles!</span>
+    </div>
+
+    <!-- Contenedor Principal -->
+    <main class="w-full max-w-md mx-auto relative z-10 flex flex-col items-center">
+
+        <!-- Botón superior para regresar a index.html -->
+        <div class="w-full flex justify-start mb-4 animate-header">
+            <a href="index.html" class="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-black hover:opacity-70 transition py-1 font-medium">
+                <i class="fa-solid fa-arrow-left"></i> Volver a Enlaces
+            </a>
+        </div>
+
+        <!-- Imagen de Perfil / Logo -->
+        <div class="mb-4 relative animate-logo">
+            <div class="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-black profile-shadow bg-white flex items-center justify-center p-1">
+                <img src="logo.jpg" alt="Florería Alyce Logo" class="w-full h-full object-cover rounded-full" onerror="this.src='https://placehold.co/400x400/F3EFEA/111111?text=FA'">
+            </div>
+            <div class="absolute -bottom-1 -right-1 text-black animate-bounce" style="animation-duration: 3s;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+                    <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Textos de Cabecera -->
+        <header class="text-center mb-7 animate-header">
+            <h1 class="text-2xl md:text-3xl font-bold tracking-widest uppercase mb-1 text-black">
+                Florería Alyce
+            </h1>
+            <p class="text-xs tracking-[0.22em] uppercase text-gray-700 font-light">
+                Pagos por Transferencia
+            </p>
+        </header>
+
+        <!-- Tarjeta de Datos Bancarios -->
+        <section class="w-full bank-card rounded-2xl p-6 mb-6 animate-card">
+            
+            <!-- Encabezado del Banco y Titular -->
+            <div class="flex items-center justify-between border-b border-black/20 pb-4 mb-5">
+                <div>
+                    <span class="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-0.5">Institución Bancaria</span>
+                    <h2 id="bank-name" class="text-xl font-bold uppercase tracking-wider text-black">BBVA México</h2>
+                </div>
+                <div class="w-11 h-11 rounded-full bg-black text-[#F3EFEA] flex items-center justify-center">
+                    <i class="fa-solid fa-building-columns text-lg"></i>
+                </div>
+            </div>
+
+            <!-- Nombre del Beneficiario -->
+            <div class="mb-5">
+                <span class="text-[10px] uppercase tracking-[0.2em] text-gray-500 block mb-1">Beneficiario / Titular</span>
+                <p id="beneficiary-name" class="text-sm font-semibold uppercase tracking-wider text-black">
+                    Florería Alyce
+                </p>
+            </div>
+
+            <!-- 1. Bloque para Copiar CLABE Interbancaria (Solo copia los 18 números) -->
+            <div id="clabe-section" class="mb-4">
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="text-[10px] uppercase tracking-[0.2em] text-gray-600 font-semibold">
+                        CLABE Interbancaria (18 dígitos)
+                    </span>
+                    <span class="text-[10px] uppercase tracking-wider text-gray-500">
+                        Toca para copiar
+                    </span>
+                </div>
+
+                <div onclick="copiarSoloNumero('clabe-raw', 'btn-copy-clabe', 'CLABE copiada')" 
+                     class="copy-number-box rounded-xl p-4 flex flex-col gap-3">
+                    
+                    <p id="clabe-formatted" class="font-mono text-base md:text-lg font-bold tracking-widest text-center text-black select-all">
+                        0123 4567 8901 2345 67
+                    </p>
+                    <input type="hidden" id="clabe-raw" value="012345678901234567">
+
+                    <button type="button" id="btn-copy-clabe" class="w-full py-2.5 bg-black text-[#F3EFEA] rounded-lg text-xs uppercase tracking-widest font-medium flex items-center justify-center gap-2 transition">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copiar Número CLABE</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. Bloque para Copiar Número de Tarjeta o Cuenta BBVA (Actualizado a 4152314542907095) -->
+            <div id="card-number-section" class="mb-4">
+                <div class="flex justify-between items-center mb-1.5">
+                    <span id="secondary-label" class="text-[10px] uppercase tracking-[0.2em] text-gray-600 font-semibold">
+                        Número de Tarjeta / Cuenta BBVA
+                    </span>
+                    <span class="text-[10px] uppercase tracking-wider text-gray-500">
+                        Toca para copiar
+                    </span>
+                </div>
+
+                <div onclick="copiarSoloNumero('cuenta-raw', 'btn-copy-cuenta', 'Número de cuenta copiado')" 
+                     class="copy-number-box rounded-xl p-4 flex flex-col gap-3">
+                    
+                    <p id="cuenta-formatted" class="font-mono text-base md:text-lg font-bold tracking-widest text-center text-black select-all">
+                        4152 3145 4290 7095
+                    </p>
+                    <input type="hidden" id="cuenta-raw" value="4152314542907095">
+
+                    <button type="button" id="btn-copy-cuenta" class="w-full py-2.5 bg-black text-[#F3EFEA] rounded-lg text-xs uppercase tracking-widest font-medium flex items-center justify-center gap-2 transition">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copiar Número de Cuenta</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Nota de concepto -->
+            <div class="mt-4 pt-3 border-t border-black/15 text-center">
+                <p class="text-[11px] text-gray-700 font-light leading-relaxed">
+                    <i class="fa-solid fa-circle-info mr-1 text-black"></i>
+                    En <strong>Concepto de pago</strong> coloca tu <strong>Nombre</strong> o <strong>Pedido Floral</strong>.
+                </p>
+            </div>
+        </section>
+
+        <!-- Botones de Acción Inferior -->
+        <section class="w-full space-y-3.5 animate-actions">
+            <!-- Enviar Comprobante por WhatsApp (Actualizado a +528119221853) -->
+            <a id="btn-whatsapp-comprobante" href="https://wa.me/528119221853?text=Hola%20Florer%C3%ADa%20Alyce%2C%20adjunto%20mi%20comprobante%20de%20transferencia." target="_blank" rel="noopener noreferrer"
+               class="link-button group flex items-center justify-between w-full p-4 border border-black text-black rounded-xl">
+                <div class="w-8 flex justify-center">
+                    <i class="fa-brands fa-whatsapp text-2xl transition-transform duration-300 group-hover:scale-110"></i>
+                </div>
+                <span class="flex-1 text-center font-medium tracking-wide uppercase text-xs md:text-sm">
+                    Enviar Comprobante por WhatsApp
+                </span>
+                <div class="w-8 flex justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </div>
+            </a>
+
+            <!-- Volver a la página principal de enlaces (index.html) -->
+            <a href="index.html"
+               class="link-button group flex items-center justify-between w-full p-4 border border-black text-black rounded-xl">
+                <div class="w-8 flex justify-center">
+                    <i class="fa-solid fa-house text-lg transition-transform duration-300 group-hover:scale-110"></i>
+                </div>
+                <span class="flex-1 text-center font-medium tracking-wide uppercase text-xs md:text-sm">
+                    Regresar al Menú Principal
+                </span>
+                <div class="w-8 flex justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </div>
+            </a>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 mb-6 text-center z-10">
+        <p class="text-xs text-gray-500 font-light tracking-wider uppercase">
+            © 2026 Florería Alyce
+        </p>
+    </footer>
+
+    <!-- ==========================================================
+         CONFIGURACIÓN DE DATOS DE TRANSFERENCIA Y FUNCIONES
+         ========================================================== -->
+    <script>
+        /**
+         * DATOS BANCARIOS DE FLORERÍA ALYCE
+         */
+        const DATOS_BANCARIOS = {
+            banco: "BBVA México",
+            beneficiario: "Florería Alyce",
+            clabe: "0123 4567 8901 2345 67",
+            mostrarTarjetaOCuenta: true,
+            etiquetaSecundaria: "Número de Tarjeta / Cuenta BBVA",
+            numeroTarjetaOCuenta: "4152 3145 4290 7095",
+            whatsappComprobante: "+528119221853"
+        };
+
+        // Inicializa los datos en la tarjeta
+        function cargarDatosBancarios() {
+            document.getElementById("bank-name").textContent = DATOS_BANCARIOS.banco;
+            document.getElementById("beneficiary-name").textContent = DATOS_BANCARIOS.beneficiario;
+
+            // Configurar CLABE
+            const clabeLimpia = DATOS_BANCARIOS.clabe.replace(/\D/g, "");
+            document.getElementById("clabe-formatted").textContent = DATOS_BANCARIOS.clabe;
+            document.getElementById("clabe-raw").value = clabeLimpia;
+
+            // Configurar Tarjeta / Cuenta BBVA
+            const seccionTarjeta = document.getElementById("card-number-section");
+            if (DATOS_BANCARIOS.mostrarTarjetaOCuenta && DATOS_BANCARIOS.numeroTarjetaOCuenta) {
+                const cuentaLimpia = DATOS_BANCARIOS.numeroTarjetaOCuenta.replace(/\D/g, "");
+                document.getElementById("secondary-label").textContent = DATOS_BANCARIOS.etiquetaSecundaria;
+                document.getElementById("cuenta-formatted").textContent = DATOS_BANCARIOS.numeroTarjetaOCuenta;
+                document.getElementById("cuenta-raw").value = cuentaLimpia;
+            } else {
+                seccionTarjeta.style.display = "none";
+            }
+
+            // Configurar botón de WhatsApp para enviar comprobante
+            const waClean = DATOS_BANCARIOS.whatsappComprobante.replace(/\D/g, "");
+            const mensaje = encodeURIComponent("Hola Florería Alyce 🌸, adjunto mi comprobante de pago por transferencia.");
+            document.getElementById("btn-whatsapp-comprobante").href = `https://wa.me/${waClean}?text=${mensaje}`;
+        }
+
+        // Función que copia ÚNICAMENTE los números (sin espacios ni letras)
+        function copiarSoloNumero(inputId, btnId, textoConfirmacion) {
+            const valorSoloNumeros = document.getElementById(inputId).value.replace(/\D/g, "");
+            const boton = document.getElementById(btnId);
+            const htmlOriginal = boton.innerHTML;
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(valorSoloNumeros);
+            } else {
+                const tempInput = document.createElement("input");
+                tempInput.value = valorSoloNumeros;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand("copy");
+                document.body.removeChild(tempInput);
+            }
+
+            boton.classList.remove("bg-black");
+            boton.classList.add("bg-emerald-700");
+            boton.innerHTML = `<i class="fa-solid fa-check"></i><span>¡Número Copiado! (${valorSoloNumeros})</span>`;
+
+            mostrarToast(`${textoConfirmacion}: ${valorSoloNumeros}`);
+
+            setTimeout(() => {
+                boton.classList.remove("bg-emerald-700");
+                boton.classList.add("bg-black");
+                boton.innerHTML = htmlOriginal;
+            }, 2400);
+        }
+
+        let toastTimeout;
+        function mostrarToast(mensaje) {
+            const toast = document.getElementById("copy-toast");
+            const toastMsg = document.getElementById("toast-message");
+            toastMsg.textContent = mensaje;
+
+            toast.classList.remove("opacity-0", "-translate-y-4");
+            toast.classList.add("opacity-100", "translate-y-0");
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove("opacity-100", "translate-y-0");
+                toast.classList.add("opacity-0", "-translate-y-4");
+            }, 2500);
+        }
+
+        // Animación de hojas cayendo en el fondo
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarDatosBancarios();
+
+            const leavesContainer = document.getElementById("leaves-container");
+            const numberOfLeaves = 15;
+            const leafSVG = `
+                <svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%">
+                    <path d="M17.5,3C13.4,3,9.7,5.5,7.8,9C6.4,11.5,6.1,14.4,7.1,17.1c0.1,0.3,0.3,0.6,0.6,0.8l-3.3,3.3c-0.4,0.4-0.4,1,0,1.4 c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3l3.3-3.3c0.3,0.3,0.6,0.5,1,0.6c2.7,1,5.6,0.7,8.1-0.7c3.5-1.9,6-5.6,6-9.7 C24,5,21,2,17.5,3z M15,16.5c-1.3,0.7-2.9,0.8-4.3,0.3l5.5-5.5c0.4-0.4,0.4-1,0-1.4s-1-0.4-1.4,0l-5.5,5.5c-0.5-1.4-0.4-3,0.3-4.3 C11.1,8.3,14,6.4,17.5,6.4C19.8,6.5,21.5,8.2,21.5,10.5C21.6,14,19.7,16.9,15,16.5z"/>
+                </svg>
+            `;
+
+            function createLeaf() {
+                const leaf = document.createElement("div");
+                leaf.classList.add("leaf");
+                leaf.innerHTML = leafSVG;
+
+                const size = Math.random() * 20 + 15;
+                const leftPosition = Math.random() * 100;
+                const animationDuration = Math.random() * 10 + 10;
+                const animationDelay = Math.random() * 10;
+                const rotationStart = Math.random() * 360;
+
+                leaf.style.width = `${size}px`;
+                leaf.style.height = `${size}px`;
+                leaf.style.left = `${leftPosition}%`;
+                leaf.style.animationDuration = `${animationDuration}s`;
+                leaf.style.animationDelay = `${animationDelay}s`;
+                leaf.style.transform = `rotate(${rotationStart}deg)`;
+
+                leavesContainer.appendChild(leaf);
+
+                leaf.addEventListener("animationend", () => {
+                    leaf.remove();
+                    createLeaf();
+                });
+            }
+
+            for (let i = 0; i < numberOfLeaves; i++) {
+                createLeaf();
+            }
+        });
+    </script>
+</body>
+</html>
